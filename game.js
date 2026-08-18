@@ -40,19 +40,44 @@ let physicsBodies = [];     // { body, level, merged }
 let particles = [];         // Efectos de pop
 let mergeFlash = [];        // Flash al fusionar
 
+// --- Escala del juego (se recalcula al resize) ---
+let scaleX = 1, scaleY = 1;
+let displayWidth = GAME_WIDTH, displayHeight = GAME_HEIGHT;
+
 // --- Setup del canvas ---
 function setupCanvas() {
     canvas = document.getElementById('game');
     ctx = canvas.getContext('2d');
+    resizeCanvas();
+}
+
+function resizeCanvas() {
     const container = document.getElementById('game-container');
     const rect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = GAME_WIDTH * dpr;
-    canvas.height = GAME_HEIGHT * dpr;
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    ctx.scale(dpr, dpr);
+
+    displayWidth = rect.width;
+    displayHeight = rect.height;
+
+    // El canvas interno usa el tamaño real del contenedor × dpr para nitidez
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+
+    // Escala uniforme: mantener la proporción del juego (420×590)
+    // Usamos la menor escala para que todo quepa sin estirar
+    const uniformScale = Math.min(displayWidth / GAME_WIDTH, displayHeight / GAME_HEIGHT);
+
+    // Centrar el juego si sobra espacio
+    const offsetX = (displayWidth - GAME_WIDTH * uniformScale) / 2;
+    const offsetY = (displayHeight - GAME_HEIGHT * uniformScale) / 2;
+
+    // Aplicar transform: todo se dibuja en coordenadas del juego y se escala uniformemente
+    ctx.setTransform(dpr * uniformScale, 0, 0, dpr * uniformScale, dpr * offsetX, dpr * offsetY);
 }
+
+window.addEventListener('resize', resizeCanvas);
 
 // --- Setup del motor de física ---
 function setupPhysics() {
@@ -397,8 +422,9 @@ function gameLoop() {
 function setupInput() {
     const getPointerX = (clientX) => {
         const rect = canvas.getBoundingClientRect();
-        const scale = GAME_WIDTH / rect.width;
-        return (clientX - rect.left) * scale;
+        const uniformScale = Math.min(rect.width / GAME_WIDTH, rect.height / GAME_HEIGHT);
+        const offsetX = (rect.width - GAME_WIDTH * uniformScale) / 2;
+        return (clientX - rect.left - offsetX) / uniformScale;
     };
 
     // Mouse
