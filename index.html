@@ -424,7 +424,22 @@
     <script src="multiplayer.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                // Detectar cuando hay un nuevo Service Worker y recargar
+                reg.addEventListener('updatefound', () => {
+                    const newSW = reg.installing;
+                    newSW.addEventListener('statechange', () => {
+                        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
+                            // Nuevo SW activado — recargar para usar versiones nuevas
+                            window.location.reload();
+                        }
+                    });
+                });
+            });
+            // También verificar si ya hay un SW esperando para activarse
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            });
         }
     </script>
 </body>
