@@ -23,7 +23,126 @@
             align-items: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             touch-action: none;
+            color: #fff;
         }
+
+        /* --- Pantallas (solo una visible a la vez) --- */
+        .screen {
+            position: fixed;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .screen.active { display: flex; }
+
+        /* --- Menú principal --- */
+        #menu-screen { background: linear-gradient(180deg, #1a1a2e, #0f3460); gap: 6px; padding: 24px; }
+        #menu-screen h1 { font-size: 48px; margin: 0 0 4px; }
+        #menu-screen .subtitle { font-size: 14px; opacity: 0.5; margin-bottom: 28px; }
+        #name-input {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 14px 20px;
+            font-size: 18px;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 20px;
+            width: 240px;
+            outline: none;
+        }
+        #name-input:focus { border-color: #e94560; }
+        #name-input::placeholder { color: rgba(255,255,255,0.3); }
+        .menu-btn {
+            background: #e94560;
+            color: #fff;
+            border: none;
+            padding: 14px 0;
+            border-radius: 30px;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            width: 240px;
+            margin-bottom: 12px;
+        }
+        .menu-btn:active { transform: scale(0.95); }
+        .menu-btn.secondary { background: rgba(255,255,255,0.12); }
+        .menu-btn.secondary:active { background: rgba(255,255,255,0.18); }
+
+        /* --- Lobby --- */
+        #lobby-screen { background: linear-gradient(180deg, #1a1a2e, #0f3460); gap: 0; padding: 24px; }
+        #lobby-screen h2 { font-size: 24px; margin: 0 0 6px; }
+        .room-code {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #e94560;
+            margin: 4px 0 8px;
+        }
+        .share-link {
+            font-size: 12px;
+            opacity: 0.5;
+            word-break: break-all;
+            margin-bottom: 20px;
+            padding: 0 12px;
+        }
+        #lobby-screen .section-label {
+            font-size: 12px;
+            opacity: 0.5;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        #players-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 24px;
+            width: 260px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #players-list li {
+            padding: 10px 16px;
+            margin: 4px 0;
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #players-list li.host::after { content: '👑'; margin-left: auto; }
+        #lobby-waiting { font-size: 14px; opacity: 0.5; margin-top: 8px; }
+
+        /* Timer selector in lobby */
+        .timer-config {
+            margin: 12px 0 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .timer-options { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .timer-option {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid transparent;
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .timer-option.selected {
+            border-color: #e94560;
+            background: rgba(233,69,96,0.15);
+        }
+
+        /* --- Juego --- */
+        #game-screen { background: #0f0f1a; }
         #game-container {
             position: fixed;
             top: 0;
@@ -38,7 +157,7 @@
             right: 0;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             padding: 12px 16px;
             z-index: 10;
             color: #fff;
@@ -54,6 +173,68 @@
         #next-block { text-align: left; }
         #next-label { font-size: 11px; opacity: 0.6; text-transform: uppercase; }
         #next-fruit { font-size: 28px; }
+
+        /* Position badge */
+        #position-badge {
+            position: absolute;
+            top: 54px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(233,69,96,0.2);
+            border: 1px solid rgba(233,69,96,0.4);
+            border-radius: 16px;
+            padding: 4px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #e94560;
+            z-index: 10;
+            display: none;
+            white-space: nowrap;
+        }
+        #position-badge.show { display: block; }
+
+        /* Timer display */
+        #timer-display {
+            position: absolute;
+            top: 54px;
+            right: 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 4px 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffeaa7;
+            z-index: 10;
+            display: none;
+        }
+        #timer-display.show { display: block; }
+        #timer-display.urgent { color: #e94560; }
+
+        /* Toast notifications */
+        #toast-container {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(0,0,0,0.75);
+            border-radius: 20px;
+            padding: 10px 24px;
+            font-size: 15px;
+            color: #fff;
+            font-weight: 600;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { to { opacity: 0; transform: translateY(-20px); } }
+
         canvas {
             display: block;
             width: 100%;
@@ -62,7 +243,7 @@
         #game-over {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: none;
             flex-direction: column;
             justify-content: center;
@@ -72,10 +253,16 @@
             text-align: center;
         }
         #game-over.show { display: flex; }
-        #game-over h2 { font-size: 32px; margin-bottom: 8px; }
-        #game-over p { font-size: 16px; opacity: 0.8; margin-bottom: 24px; }
+        #game-over h2 { font-size: 28px; margin-bottom: 8px; }
+        #game-over p { font-size: 15px; opacity: 0.6; margin-bottom: 20px; }
         #final-score { font-size: 48px; font-weight: bold; }
-        #final-label { font-size: 14px; opacity: 0.6; text-transform: uppercase; margin-bottom: 24px; }
+        #final-label { font-size: 13px; opacity: 0.5; text-transform: uppercase; margin-bottom: 20px; }
+        #spectating-msg {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 16px;
+            max-width: 280px;
+        }
         button {
             background: #e94560;
             color: #fff;
@@ -88,35 +275,151 @@
             transition: transform 0.1s;
         }
         button:active { transform: scale(0.95); }
+
+        /* --- Resultados --- */
+        #results-screen { background: linear-gradient(180deg, #1a1a2e, #0f3460); gap: 0; padding: 24px; }
+        #results-screen h2 { font-size: 32px; margin: 0 0 20px; }
+        #results-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 24px;
+            width: 280px;
+        }
+        #results-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin: 6px 0;
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+            font-size: 17px;
+        }
+        #results-list li .rank { font-size: 22px; font-weight: bold; min-width: 36px; text-align: center; }
+        #results-list li .name { flex: 1; text-align: left; }
+        #results-list li .pts { font-weight: bold; color: #e94560; }
+        #results-list li.winner { background: rgba(233,69,96,0.15); border: 1px solid rgba(233,69,96,0.3); }
+
+        /* --- Conexion / errores --- */
+        .conn-status {
+            font-size: 13px;
+            opacity: 0.5;
+            margin-top: 12px;
+        }
+        .conn-status.error { color: #e94560; opacity: 1; }
+
+        /* Copy button */
+        .copy-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+        .copy-btn:active { transform: scale(0.95); }
+
+        /* Join code input */
+        #join-code-input {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 12px 20px;
+            font-size: 18px;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 12px;
+            width: 200px;
+            outline: none;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        #join-code-input:focus { border-color: #e94560; }
+        #join-code-input::placeholder { color: rgba(255,255,255,0.3); letter-spacing: 1px; }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="hud">
-            <div id="next-block">
-                <div id="next-label">Siguiente</div>
-                <div id="next-fruit">🍒</div>
-            </div>
-            <div id="score-block">
-                <div id="score-label">Puntos</div>
-                <div id="score">0</div>
-            </div>
-            <div id="best-block">
-                <div id="best-label">Récord</div>
-                <div id="best">0</div>
+    <!-- MENÚ PRINCIPAL -->
+    <div id="menu-screen" class="screen active">
+        <h1>🍉 Frutitas</h1>
+        <div class="subtitle">Fusiona frutas, gana puntos</div>
+        <input id="name-input" type="text" placeholder="Tu nombre" maxlength="14" autocomplete="off">
+        <button class="menu-btn" onclick="MP.startSingle()">🎮 Jugar Solo</button>
+        <button class="menu-btn secondary" onclick="MP.showCreate()">🏆 Crear Sala</button>
+        <button class="menu-btn secondary" onclick="MP.showJoin()">🔗 Unirme a Sala</button>
+        <div id="menu-join-fields" style="display:none; margin-top: 12px;">
+            <input id="join-code-input" type="text" placeholder="CÓDIGO" maxlength="6" autocomplete="off">
+            <button class="menu-btn" style="margin-top: 8px;" onclick="MP.joinFromMenu()">Entrar</button>
+        </div>
+        <div id="menu-status" class="conn-status"></div>
+    </div>
+
+    <!-- LOBBY -->
+    <div id="lobby-screen" class="screen">
+        <h2> Sala de Espera</h2>
+        <div id="room-code-display" class="room-code">------</div>
+        <div id="share-link-display" class="share-link"></div>
+        <button id="copy-link-btn" class="copy-btn" onclick="MP.copyLink()">📋 Copiar link</button>
+        <div class="section-label">Jugadores</div>
+        <ul id="players-list"></ul>
+        <div id="timer-config-wrap" class="timer-config" style="display:none;">
+            <div class="section-label">Tiempo límite</div>
+            <div class="timer-options">
+                <button class="timer-option" data-t="0" onclick="MP.selectTimer(0)">∞</button>
+                <button class="timer-option" data-t="30" onclick="MP.selectTimer(30)">30s</button>
+                <button class="timer-option" data-t="60" onclick="MP.selectTimer(60)">1min</button>
+                <button class="timer-option" data-t="180" onclick="MP.selectTimer(180)">3min</button>
             </div>
         </div>
-        <canvas id="game"></canvas>
-        <div id="game-over">
-            <h2>¡Game Over! 🍉</h2>
-            <p>Las frutas llegaron al tope</p>
-            <div id="final-label">Puntuación final</div>
-            <div id="final-score">0</div>
-            <button id="restart-btn">Jugar de nuevo</button>
+        <button id="start-game-btn" class="menu-btn" style="display:none;" onclick="MP.hostStartGame()">🚀 Iniciar Juego</button>
+        <div id="lobby-waiting"></div>
+    </div>
+
+    <!-- JUEGO -->
+    <div id="game-screen" class="screen">
+        <div id="game-container">
+            <div id="hud">
+                <div id="next-block">
+                    <div id="next-label">Siguiente</div>
+                    <div id="next-fruit">🍒</div>
+                </div>
+                <div id="score-block">
+                    <div id="score-label">Puntos</div>
+                    <div id="score">0</div>
+                </div>
+                <div id="best-block">
+                    <div id="best-label">Récord</div>
+                    <div id="best">0</div>
+                </div>
+            </div>
+            <div id="position-badge"></div>
+            <div id="timer-display"></div>
+            <div id="toast-container"></div>
+            <canvas id="game"></canvas>
+            <div id="game-over">
+                <h2 id="gameover-title">¡Game Over! 🍉</h2>
+                <p id="gameover-msg">Las frutas llegaron al tope</p>
+                <div id="final-label">Puntuación final</div>
+                <div id="final-score">0</div>
+                <div id="spectating-msg" style="display:none;">Esperando a que los demás terminen...</div>
+                <button id="restart-btn" style="display:none;">Jugar de nuevo</button>
+            </div>
         </div>
     </div>
+
+    <!-- RESULTADOS -->
+    <div id="results-screen" class="screen">
+        <h2>🏆 Resultados</h2>
+        <ul id="results-list"></ul>
+        <button class="menu-btn secondary" onclick="MP.backToMenu()">Volver al menú</button>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="game.js"></script>
+    <script src="multiplayer.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');

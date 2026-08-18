@@ -1,7 +1,7 @@
 {
     "name": "🍉 Frutitas",
     "short_name": "Frutitas",
-    "description": "Juego de fusionar frutas con física. Suelta, fusiona y haz la sandía!",
+    "description": "Juego de fusionar frutas con física. Crea salas, reta a tus amigos y compite por el primer lugar!",
     "start_url": "./index.html",
     "display": "standalone",
     "orientation": "portrait",

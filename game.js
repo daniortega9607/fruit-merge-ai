@@ -1,5 +1,5 @@
 // 🍉 Frutitas — Suika Game minimalista con Matter.js + emojis
-// Juego de fusionar frutas con física. Suelta frutas, fusiona iguales, haz la sandía.
+// Juego de fusionar fruta con física. Suelta frutas, fusiona iguales, haz la sandía.
 
 const { Engine, World, Bodies, Body, Events, Composite, Vector } = Matter;
 
@@ -26,7 +26,7 @@ let GAME_WIDTH = 400;
 let GAME_HEIGHT = 600;
 let DROP_Y = 60;
 let DANGER_LINE_Y = 90;
-let fruitScale = 1; // Escala de frutas proporcional al ancho
+let fruitScale = 1;
 
 // --- Estado del juego ---
 let engine, world;
@@ -44,6 +44,10 @@ let particles = [];
 let mergeFlash = [];
 let dangerTimer = 0;
 let walls = [];
+let running = false;
+let animationId = null;
+let onScoreChangeCallback = null;
+let onGameOverCallback = null;
 
 // --- Setup del canvas ---
 function setupCanvas() {
@@ -66,18 +70,14 @@ function resizeCanvas() {
     canvas.style.height = GAME_HEIGHT + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Posiciones relativas
     DROP_Y = 50;
     DANGER_LINE_Y = 80;
     pointerX = GAME_WIDTH / 2;
 
-    // Escala de frutas: basada en el ancho (420px = escala 1)
     fruitScale = Math.min(GAME_WIDTH / 420, 1.2);
-    // Aplicar escala a las frutas
     const baseRadii = [16, 22, 28, 34, 40, 48, 56, 64, 74, 84, 96];
     FRUITS.forEach((f, i) => { f.radius = baseRadii[i] * fruitScale; });
 
-    // Reconstruir paredes si el motor ya existe
     if (world) {
         for (const w of walls) World.remove(world, w);
         walls = [];
@@ -143,7 +143,6 @@ function dropFruit() {
     setTimeout(() => { canDrop = true; }, DROP_COOLDOWN);
 }
 
-// --- Elegir un nivel aleatorio (solo los 5 primeros para empezar) ---
 function pickRandomLevel() {
     return Math.floor(Math.random() * 5);
 }
@@ -228,6 +227,8 @@ function triggerGameOver() {
         localStorage.setItem('frutitas-best', String(bestScore));
         document.getElementById('best').textContent = bestScore;
     }
+    // Notificar multijugador
+    if (onGameOverCallback) onGameOverCallback();
 }
 
 // --- Reiniciar ---
@@ -246,6 +247,7 @@ function resetGame() {
     nextFruitLevel = pickRandomLevel();
     document.getElementById('next-fruit').textContent = FRUITS[nextFruitLevel].emoji;
     document.getElementById('game-over').classList.remove('show');
+    document.getElementById('spectating-msg').style.display = 'none';
     updateScore();
 }
 
@@ -253,6 +255,8 @@ function resetGame() {
 function updateScore() {
     document.getElementById('score').textContent = score;
     document.getElementById('best').textContent = Math.max(bestScore, score);
+    // Notificar multijugador
+    if (onScoreChangeCallback) onScoreChangeCallback();
 }
 
 // --- Renderizar ---
@@ -382,7 +386,6 @@ function drawMergeFlash() {
 function render() {
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Fondo que llena todo
     const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
     grad.addColorStop(0, '#1a1a2e');
     grad.addColorStop(1, '#0f3460');
@@ -408,7 +411,7 @@ function gameLoop() {
         checkGameOver();
     }
     render();
-    requestAnimationFrame(gameLoop);
+    if (running) animationId = requestAnimationFrame(gameLoop);
 }
 
 // --- Input ---
@@ -439,30 +442,55 @@ function setupInput() {
         dropFruit();
     }, { passive: false });
 
-    document.getElementById('restart-btn').addEventListener('click', resetGame);
+    document.getElementById('restart-btn').addEventListener('click', () => {
+        resetGame();
+        // En multijugador, el restart lo controla el host via resultados
+    });
 }
 
-// --- Inicializar ---
-function init() {
-    setupCanvas();
-    setupPhysics();
-    setupMergeDetection();
-    setupInput();
+// --- API pública para multiplayer.js ---
+const Game = {
+    start(scoreCallback, gameOverCallback) {
+        onScoreChangeCallback = scoreCallback || null;
+        onGameOverCallback = gameOverCallback || (() => {
+            if (typeof MP !== 'undefined' && MP.onLocalGameOver) MP.onLocalGameOver();
+        });
+        running = true;
+        // Setup si no existe
+        if (!engine) {
+            setupCanvas();
+            setupPhysics();
+            setupMergeDetection();
+            setupInput();
+        }
+        resetGame();
+        if (animationId) cancelAnimationFrame(animationId);
+        gameLoop();
+    },
+    stop() {
+        running = false;
+        if (animationId) cancelAnimationFrame(animationId);
+    },
+    isRunning() { return running; },
+    getScore() { return score; },
+    forceGameOver() { triggerGameOver(); },
+    reset: resetGame,
+};
 
-    currentFruitLevel = pickRandomLevel();
-    nextFruitLevel = pickRandomLevel();
-    document.getElementById('next-fruit').textContent = FRUITS[nextFruitLevel].emoji;
-    document.getElementById('best').textContent = bestScore;
-    updateScore();
-
-    gameLoop();
-}
-
+// --- Inicialización automática (modo solo) ---
+// Se reemplaza por Game.start() en multiplayer.js
+// Pero conservamos compatibilidad: si no hay MP, arrancamos solo
 window.addEventListener('load', () => {
     if (typeof Matter !== 'undefined') {
-        init();
+        // No auto-iniciar; MP.autoInit() maneja el flujo
+        // Si MP no existe (script falló), iniciar solo
+        if (typeof MP === 'undefined') {
+            Game.start();
+        }
     } else {
-        setTimeout(init, 500);
+        setTimeout(() => {
+            if (typeof MP === 'undefined') Game.start();
+        }, 500);
     }
 });
 
