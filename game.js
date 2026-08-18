@@ -61,6 +61,7 @@ function resizeCanvas() {
     const rect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
+    // Dimensiones fijas del área de juego (igual para todos)
     GAME_WIDTH = rect.width;
     GAME_HEIGHT = rect.height;
 
@@ -74,7 +75,8 @@ function resizeCanvas() {
     DANGER_LINE_Y = 80;
     pointerX = GAME_WIDTH / 2;
 
-    fruitScale = Math.min(GAME_WIDTH / 420, 1.2);
+    // Escala fija: el contenedor ya está limitado a 420px por CSS
+    fruitScale = Math.min(GAME_WIDTH / 420, 1);
     const baseRadii = [16, 22, 28, 34, 40, 48, 56, 64, 74, 84, 96];
     FRUITS.forEach((f, i) => { f.radius = baseRadii[i] * fruitScale; });
 
