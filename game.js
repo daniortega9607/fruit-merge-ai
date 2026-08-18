@@ -449,7 +449,7 @@ function setupInput() {
 }
 
 // --- API pública para multiplayer.js ---
-const Game = {
+window.Game = {
     start(scoreCallback, gameOverCallback) {
         onScoreChangeCallback = scoreCallback || null;
         onGameOverCallback = gameOverCallback || (() => {

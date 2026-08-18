@@ -2,7 +2,7 @@
 // El host es el peer central. Los invitados se conectan a su ID.
 // Mensajes: score_update, player_lost, game_start, game_end, lobby_update, timer_config
 
-const MP = (() => {
+window.MP = (() => {
     const PEER_ID_PREFIX = 'frutitas-';
     const ROOM_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin caracteres ambiguos
     const ROOM_CODE_LEN = 5;
