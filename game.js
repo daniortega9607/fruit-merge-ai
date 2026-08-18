@@ -3,7 +3,7 @@
 
 const { Engine, World, Bodies, Body, Events, Composite, Vector } = Matter;
 
-// --- Configuración ---
+// --- Configuración fija ---
 const FRUITS = [
     { emoji: '🍒', radius: 16, score: 1,  color: '#e74c3c' },
     { emoji: '🍓', radius: 22, score: 3,  color: '#e84393' },
@@ -18,31 +18,32 @@ const FRUITS = [
     { emoji: '🍉', radius: 96, score: 66, color: '#ff6b6b' },
 ];
 
-const GAME_WIDTH = 420;
-const GAME_HEIGHT = 590;
-const WALL_THICKNESS = 30;
-const DROP_Y = 70;
-const DANGER_LINE_Y = 100;
+const WALL_THICKNESS = 20;
 const DROP_COOLDOWN = 600; // ms entre soltar frutas
+
+// --- Dimensiones dinámicas (se recalculan al resize) ---
+let GAME_WIDTH = 400;
+let GAME_HEIGHT = 600;
+let DROP_Y = 60;
+let DANGER_LINE_Y = 90;
+let fruitScale = 1; // Escala de frutas proporcional al ancho
 
 // --- Estado del juego ---
 let engine, world;
 let canvas, ctx;
-let currentFruit = null;   // La fruta lista para soltar (objeto visual, no físico)
-let nextFruitLevel = 0;    // Nivel de la siguiente fruta
+let currentFruitLevel = 0;
+let nextFruitLevel = 0;
 let canDrop = true;
 let lastDropTime = 0;
 let score = 0;
 let bestScore = parseInt(localStorage.getItem('frutitas-best') || '0');
 let gameOver = false;
-let pointerX = GAME_WIDTH / 2;
-let physicsBodies = [];     // { body, level, merged }
-let particles = [];         // Efectos de pop
-let mergeFlash = [];        // Flash al fusionar
-
-// --- Escala del juego (se recalcula al resize) ---
-let scaleX = 1, scaleY = 1;
-let displayWidth = GAME_WIDTH, displayHeight = GAME_HEIGHT;
+let pointerX = 0;
+let physicsBodies = [];
+let particles = [];
+let mergeFlash = [];
+let dangerTimer = 0;
+let walls = [];
 
 // --- Setup del canvas ---
 function setupCanvas() {
@@ -56,43 +57,53 @@ function resizeCanvas() {
     const rect = container.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
 
-    displayWidth = rect.width;
-    displayHeight = rect.height;
+    GAME_WIDTH = rect.width;
+    GAME_HEIGHT = rect.height;
 
-    // El canvas interno usa el tamaño real del contenedor × dpr para nitidez
-    canvas.width = displayWidth * dpr;
-    canvas.height = displayHeight * dpr;
-    canvas.style.width = displayWidth + 'px';
-    canvas.style.height = displayHeight + 'px';
+    canvas.width = GAME_WIDTH * dpr;
+    canvas.height = GAME_HEIGHT * dpr;
+    canvas.style.width = GAME_WIDTH + 'px';
+    canvas.style.height = GAME_HEIGHT + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Escala uniforme: mantener la proporción del juego (420×590)
-    // Usamos la menor escala para que todo quepa sin estirar
-    const uniformScale = Math.min(displayWidth / GAME_WIDTH, displayHeight / GAME_HEIGHT);
+    // Posiciones relativas
+    DROP_Y = 50;
+    DANGER_LINE_Y = 80;
+    pointerX = GAME_WIDTH / 2;
 
-    // Centrar el juego si sobra espacio
-    const offsetX = (displayWidth - GAME_WIDTH * uniformScale) / 2;
-    const offsetY = (displayHeight - GAME_HEIGHT * uniformScale) / 2;
+    // Escala de frutas: basada en el ancho (420px = escala 1)
+    fruitScale = Math.min(GAME_WIDTH / 420, 1.2);
+    // Aplicar escala a las frutas
+    const baseRadii = [16, 22, 28, 34, 40, 48, 56, 64, 74, 84, 96];
+    FRUITS.forEach((f, i) => { f.radius = baseRadii[i] * fruitScale; });
 
-    // Aplicar transform: todo se dibuja en coordenadas del juego y se escala uniformemente
-    ctx.setTransform(dpr * uniformScale, 0, 0, dpr * uniformScale, dpr * offsetX, dpr * offsetY);
+    // Reconstruir paredes si el motor ya existe
+    if (world) {
+        for (const w of walls) World.remove(world, w);
+        walls = [];
+        buildWalls();
+    }
 }
 
-window.addEventListener('resize', resizeCanvas);
+function buildWalls() {
+    const wallOpts = { isStatic: true, restitution: 0.3, friction: 0.5 };
+    const floor = Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT - WALL_THICKNESS / 2, GAME_WIDTH, WALL_THICKNESS, wallOpts);
+    const leftWall = Bodies.rectangle(WALL_THICKNESS / 2, GAME_HEIGHT / 2, WALL_THICKNESS, GAME_HEIGHT, wallOpts);
+    const rightWall = Bodies.rectangle(GAME_WIDTH - WALL_THICKNESS / 2, GAME_HEIGHT / 2, WALL_THICKNESS, GAME_HEIGHT, wallOpts);
+    World.add(world, [floor, leftWall, rightWall]);
+    walls = [floor, leftWall, rightWall];
+}
+
+window.addEventListener('resize', () => {
+    resizeCanvas();
+});
 
 // --- Setup del motor de física ---
 function setupPhysics() {
     engine = Engine.create();
     world = engine.world;
     engine.gravity.y = 1.0;
-
-    const wallOpts = { isStatic: true, restitution: 0.3, friction: 0.5 };
-
-    // Paredes (suelo + dos laterales)
-    World.add(world, [
-        Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT - WALL_THICKNESS / 2, GAME_WIDTH, WALL_THICKNESS, wallOpts),
-        Bodies.rectangle(WALL_THICKNESS / 2, GAME_HEIGHT / 2, WALL_THICKNESS, GAME_HEIGHT, wallOpts),
-        Bodies.rectangle(GAME_WIDTH - WALL_THICKNESS / 2, GAME_HEIGHT / 2, WALL_THICKNESS, GAME_HEIGHT, wallOpts),
-    ]);
+    buildWalls();
 }
 
 // --- Crear una fruta física ---
@@ -119,11 +130,11 @@ function dropFruit() {
     lastDropTime = now;
 
     const level = currentFruitLevel;
-    const x = Math.max(FRUITS[level].radius + WALL_THICKNESS,
-              Math.min(GAME_WIDTH - FRUITS[level].radius - WALL_THICKNESS, pointerX));
+    const fruit = FRUITS[level];
+    const x = Math.max(fruit.radius + WALL_THICKNESS,
+              Math.min(GAME_WIDTH - fruit.radius - WALL_THICKNESS, pointerX));
     createFruit(level, x, DROP_Y);
 
-    // Siguiente fruta
     currentFruitLevel = nextFruitLevel;
     nextFruitLevel = pickRandomLevel();
     document.getElementById('next-fruit').textContent = FRUITS[nextFruitLevel].emoji;
@@ -134,7 +145,7 @@ function dropFruit() {
 
 // --- Elegir un nivel aleatorio (solo los 5 primeros para empezar) ---
 function pickRandomLevel() {
-    return Math.floor(Math.random() * 5); // 0-4: cereza a limón
+    return Math.floor(Math.random() * 5);
 }
 
 // --- Fusionar frutas ---
@@ -144,7 +155,6 @@ function setupMergeDetection() {
             const a = pair.bodyA;
             const b = pair.bodyB;
 
-            // Solo fusionar si son del mismo nivel y no se han fusionado ya
             if (a.fruitLevel !== undefined && b.fruitLevel !== undefined &&
                 a.fruitLevel === b.fruitLevel && !a.merged && !b.merged &&
                 a.fruitLevel < FRUITS.length - 1) {
@@ -156,30 +166,24 @@ function setupMergeDetection() {
                 const midX = (a.position.x + b.position.x) / 2;
                 const midY = (a.position.y + b.position.y) / 2;
 
-                // Eliminar las dos frutas
                 World.remove(world, a);
                 World.remove(world, b);
                 physicsBodies = physicsBodies.filter(f => f !== a && f !== b);
 
-                // Crear la nueva fruta fusionada
                 const newBody = createFruit(newLevel, midX, midY);
-                // Pequeño impulso hacia arriba para satisfacción visual
                 Body.setVelocity(newBody, { x: 0, y: -2 });
 
-                // Puntos
                 score += FRUITS[newLevel].score;
                 updateScore();
 
-                // Efecto de partícula
-                spawnMergeEffect(midX, midY, FRUITS[newLevel].emoji);
+                spawnMergeEffect(midX, midY);
             }
         }
     });
 }
 
-// --- Efectos visuales de fusión ---
-function spawnMergeEffect(x, y, emoji) {
-    // Partículas de pop
+// --- Efectos visuales ---
+function spawnMergeEffect(x, y) {
     for (let i = 0; i < 8; i++) {
         const angle = (Math.PI * 2 * i) / 8;
         const speed = 2 + Math.random() * 3;
@@ -192,16 +196,13 @@ function spawnMergeEffect(x, y, emoji) {
             color: ['#fff', '#ffeaa7', '#fdcb6e', '#ff7675'][Math.floor(Math.random() * 4)]
         });
     }
-    // Flash de texto
-    mergeFlash.push({ x, y, text: '+' + FRUITS[0].score, life: 1.0, emoji });
+    mergeFlash.push({ x, y, life: 1.0 });
 }
 
-// --- Game Over: detectar si una fruta pasa la línea de peligro ---
-let dangerTimer = 0;
+// --- Game Over ---
 function checkGameOver() {
     let inDanger = false;
     for (const body of physicsBodies) {
-        // Solo contar frutas que llevan un rato en el juego (no recién caídas)
         if (body.position.y - body.circleRadius < DANGER_LINE_Y && body.speed < 1.0) {
             inDanger = true;
             break;
@@ -209,7 +210,6 @@ function checkGameOver() {
     }
     if (inDanger) {
         dangerTimer += 1;
-        // Necesita estar en peligro ~2 segundos (120 frames a 60fps) para game over
         if (dangerTimer > 120) {
             triggerGameOver();
         }
@@ -230,9 +230,8 @@ function triggerGameOver() {
     }
 }
 
-// --- Reiniciar juego ---
+// --- Reiniciar ---
 function resetGame() {
-    // Eliminar todos los cuerpos
     for (const body of physicsBodies) {
         World.remove(world, body);
     }
@@ -250,7 +249,7 @@ function resetGame() {
     updateScore();
 }
 
-// --- Actualizar HUD ---
+// --- HUD ---
 function updateScore() {
     document.getElementById('score').textContent = score;
     document.getElementById('best').textContent = Math.max(bestScore, score);
@@ -269,13 +268,11 @@ function drawFruit(body) {
     ctx.translate(x, y);
     ctx.rotate(angle);
 
-    // Círculo de fondo suave
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fillStyle = fruit.color + '40';
     ctx.fill();
 
-    // Emoji
     ctx.font = `${r * 1.3}px serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -305,7 +302,6 @@ function drawCurrentFruit() {
     ctx.fillText(fruit.emoji, x, y + fruit.radius * 0.05);
     ctx.restore();
 
-    // Línea guía punteada
     ctx.save();
     ctx.strokeStyle = '#ffffff20';
     ctx.setLineDash([5, 8]);
@@ -330,17 +326,15 @@ function drawDangerLine() {
 
 function drawWalls() {
     ctx.save();
-    ctx.fillStyle = '#16213e';
-    ctx.fillRect(0, GAME_HEIGHT - WALL_THICKNESS, GAME_WIDTH, WALL_THICKNESS);
-    ctx.fillRect(0, 0, WALL_THICKNESS, GAME_HEIGHT);
-    ctx.fillRect(GAME_WIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, GAME_HEIGHT);
-
-    // Suelo con gradiente
     const grad = ctx.createLinearGradient(0, GAME_HEIGHT - WALL_THICKNESS, 0, GAME_HEIGHT);
     grad.addColorStop(0, '#16213e');
     grad.addColorStop(1, '#0f3460');
     ctx.fillStyle = grad;
     ctx.fillRect(0, GAME_HEIGHT - WALL_THICKNESS, GAME_WIDTH, WALL_THICKNESS);
+
+    ctx.fillStyle = '#16213e';
+    ctx.fillRect(0, 0, WALL_THICKNESS, GAME_HEIGHT);
+    ctx.fillRect(GAME_WIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, GAME_HEIGHT);
     ctx.restore();
 }
 
@@ -388,7 +382,7 @@ function drawMergeFlash() {
 function render() {
     ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Fondo
+    // Fondo que llena todo
     const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
     grad.addColorStop(0, '#1a1a2e');
     grad.addColorStop(1, '#0f3460');
@@ -399,7 +393,6 @@ function render() {
     drawDangerLine();
     drawCurrentFruit();
 
-    // Dibujar frutas
     for (const body of physicsBodies) {
         drawFruit(body);
     }
@@ -422,12 +415,9 @@ function gameLoop() {
 function setupInput() {
     const getPointerX = (clientX) => {
         const rect = canvas.getBoundingClientRect();
-        const uniformScale = Math.min(rect.width / GAME_WIDTH, rect.height / GAME_HEIGHT);
-        const offsetX = (rect.width - GAME_WIDTH * uniformScale) / 2;
-        return (clientX - rect.left - offsetX) / uniformScale;
+        return (clientX - rect.left) * (GAME_WIDTH / rect.width);
     };
 
-    // Mouse
     canvas.addEventListener('mousemove', (e) => {
         pointerX = getPointerX(e.clientX);
     });
@@ -436,7 +426,6 @@ function setupInput() {
         dropFruit();
     });
 
-    // Touch
     canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
         pointerX = getPointerX(e.touches[0].clientX);
@@ -450,7 +439,6 @@ function setupInput() {
         dropFruit();
     }, { passive: false });
 
-    // Botón de reiniciar
     document.getElementById('restart-btn').addEventListener('click', resetGame);
 }
 
@@ -470,15 +458,12 @@ function init() {
     gameLoop();
 }
 
-// Esperar a que Matter.js cargue
 window.addEventListener('load', () => {
     if (typeof Matter !== 'undefined') {
         init();
     } else {
-        // Reintentar si el CDN tarda
         setTimeout(init, 500);
     }
 });
 
-// Evitar zoom en iOS
 document.addEventListener('gesturestart', (e) => e.preventDefault());
