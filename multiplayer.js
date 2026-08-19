@@ -502,6 +502,26 @@ window.MP = (() => {
             li.innerHTML = `<span class="rank">${rank}</span><span class="name">${escapeHtml(r.name)}</span><span class="pts">${r.score}</span>`;
             list.appendChild(li);
         });
+        // Mostrar "Jugar de nuevo" solo al host
+        const playAgainBtn = document.getElementById('play-again-btn');
+        if (isHost) {
+            playAgainBtn.style.display = 'block';
+            playAgainBtn.onclick = hostRestart;
+        } else {
+            playAgainBtn.style.display = 'none';
+        }
+    }
+
+    // --- Host: reiniciar partida para todos ---
+    function hostRestart() {
+        // Resetear estado de todos los jugadores
+        for (const pid of Object.keys(players)) {
+            players[pid].score = 0;
+            players[pid].lost = false;
+            players[pid].finalScore = 0;
+        }
+        broadcastToAll({ type: 'game_start', timer: gameTimer });
+        startMultiplayerGame(gameTimer);
     }
 
     function escapeHtml(s) {
@@ -567,5 +587,6 @@ window.MP = (() => {
         onLocalGameOver,
         onScoreChange,
         updatePositionBadge,
+        isActive() { return isHost || conns.length > 0; },
     };
 })();

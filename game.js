@@ -229,6 +229,11 @@ function triggerGameOver() {
         localStorage.setItem('frutitas-best', String(bestScore));
         document.getElementById('best').textContent = bestScore;
     }
+    // Mostrar botón "Jugar de nuevo" solo en modo solitario
+    const isMultiplayer = typeof MP !== 'undefined' && MP.isActive && MP.isActive();
+    if (!isMultiplayer) {
+        document.getElementById('restart-btn').style.display = 'block';
+    }
     // Notificar multijugador
     if (onGameOverCallback) onGameOverCallback();
 }
@@ -249,6 +254,7 @@ function resetGame() {
     nextFruitLevel = pickRandomLevel();
     document.getElementById('next-fruit').textContent = FRUITS[nextFruitLevel].emoji;
     document.getElementById('game-over').classList.remove('show');
+    document.getElementById('restart-btn').style.display = 'none';
     document.getElementById('spectating-msg').style.display = 'none';
     updateScore();
 }
