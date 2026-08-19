@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1a1a2e">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>🍉 Frutitas</title>
     <style>
         html, body {
@@ -356,6 +354,7 @@
             <button class="menu-btn" style="margin-top: 8px;" onclick="MP.joinFromMenu()">Entrar</button>
         </div>
         <div id="menu-status" class="conn-status"></div>
+        <div style="position:fixed; bottom:12px; font-size:11px; opacity:0.25;">v2.0.0</div>
     </div>
 
     <!-- LOBBY -->
@@ -420,27 +419,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="game.js"></script>
-    <script src="multiplayer.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(reg => {
-                // Detectar cuando hay un nuevo Service Worker y recargar
-                reg.addEventListener('updatefound', () => {
-                    const newSW = reg.installing;
-                    newSW.addEventListener('statechange', () => {
-                        if (newSW.state === 'activated' && navigator.serviceWorker.controller) {
-                            // Nuevo SW activado — recargar para usar versiones nuevas
-                            window.location.reload();
-                        }
-                    });
-                });
-            });
-            // También verificar si ya hay un SW esperando para activarse
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                window.location.reload();
-            });
-        }
-    </script>
+    <script src="game.js?v=2.0.0"></script>
+    <script src="multiplayer.js?v=2.0.0"></script>
 </body>
 </html>
