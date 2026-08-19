@@ -461,7 +461,9 @@ window.Game = {
     start(scoreCallback, gameOverCallback) {
         onScoreChangeCallback = scoreCallback || null;
         onGameOverCallback = gameOverCallback || (() => {
-            if (typeof MP !== 'undefined' && MP.onLocalGameOver) MP.onLocalGameOver();
+            if (typeof MP !== 'undefined' && MP.isActive && MP.isActive() && MP.onLocalGameOver) {
+                MP.onLocalGameOver();
+            }
         });
         running = true;
         // Setup si no existe
